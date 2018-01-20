@@ -68,7 +68,7 @@ Return the n'th element from a list of three:
 \begin{verbatim}
 def nth_l(1, [r|_]) do r end
 def nth_l(2, [_,r|_]) do r end
-def nth_l(3, [_,_,r]) -> r end
+def nth_l(3, [_,_,r]) do r end
 \end{verbatim}
 
 \pause Return the n'th element from a tuple of three:
@@ -122,7 +122,8 @@ Benchmark different versions of n'th:
 \pause
 \begin{verbatim}
 new_prgm({:student, name, _, year, id}, new) do \end{verbatim}\pause\begin{verbatim}
-     {:student, name, new, year, id}.
+     {:student, name, new, year, id}
+end
 \end{verbatim}
 
 \pause
@@ -422,7 +423,7 @@ def insert(key, value, {:node, k, v, left, right}) do
               ... 
           true -> 
               ...
-          end.
+          end
 \end{verbatim}
 
 \end{frame}
