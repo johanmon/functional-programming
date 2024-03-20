@@ -52,6 +52,7 @@ int main(int argc, const char * argv[]) {
     incr = atof(argv[6]);
   }
 
+  printf("generating mandelbrot: width %d, height %d, depth %d, upper left corner (%f,%f), step: %f\n", width, height, depth, x0 , y0, incr);  
   
   // We're building a rgb image and need three bytes per pixel.
   size_t image_size = sizeof(char) * 3 * width * height;
@@ -59,7 +60,7 @@ int main(int argc, const char * argv[]) {
   gettimeofday(&t0, NULL);
 
   // The host buffer to where we generate the image
-  char *host_buffer = malloc(image_size);
+  char *buffer = malloc(image_size);
   
   gettimeofday(&t1, NULL);
 
@@ -67,15 +68,16 @@ int main(int argc, const char * argv[]) {
     for(int x = 0; x < width; x++) {
       double xi = x0+incr*x;
       double yi = y0-incr*y;
-      int p = probe(x0, y0, depth);
-      color(p, depth, &host_buffer[x*y*3]);
+      int p = probe(xi, yi, depth);
+      int pos = (y * width + x)*3;
+      color(p, depth, &buffer[pos]);
     }
   }
   
   gettimeofday(&t2, NULL);
 
   // printf("Saving image to file .\n");      
-  save_to_file(x0, y0, incr, width, height, depth, host_buffer);
+  save_to_file(x0, y0, incr, width, height, depth, buffer);
   
   gettimeofday(&t3, NULL);
 
@@ -120,29 +122,30 @@ void color(int depth, int max, char *out) {
 
   // depth is in the span [0 - (max-1)]
 
-  // this will smoothen the depth (optional, try whithout)
-  depth = trunc(log((double)(depth+1))*max/log((double)max));
+  double f = ((double)depth/max);
 
-  if(depth < 0 || depth > 256 ) 
-    set(out, 255,0,0); // set to red to detect error
+  double a = f * 5;
   
-  int index = ((double)depth/max)*256*3;
+  int x = trunc(a);	          // x is [0,1,2,3,4]
+  
+  int y = trunc(255 * (a - x));    // y is [0-255]
 
-  // index is in the span [0 - (3*256-1)]
-  
-  int x = index/256;	 // x is [0,1,2]
-  
-  int y = index%256;     // y is [0-255]
   
   switch(x) {
   case 0 :
-    set(out, 0, 0, y);    // 
+    set(out, y, 0, 0);    
     break;
   case 1 :
-    set(out, y, 0, 255-y);    //
+    set(out, 255, y, 0);  
     break;
   case 2 :
-    set(out, 255-y, 0, y);    //
+    set(out, 255-y, 255, 0);  
+    break;
+  case 3 :
+    set(out, 0, 255, y);  
+    break;
+  case 4 :
+    set(out, 0, 255-y, 255);  
     break;
   } 
 }
@@ -163,10 +166,13 @@ int save_to_file(double x0, double y0, double incr, int width, int height, int d
     return -1;
   }
 
-  dprintf(fd, "P6\n# Mandelbrot image: x0 = %f y0 = %f k = %f width = %d height = %d depth = %d\n%d %d\n255\n",
-	                               x0,     y0,     incr,  width,     height,     depth,     width, height);  
+  dprintf(fd, "P6\n");
+  dprintf(fd, "# Mandelbrot image: x0 = %f y0 = %f k = %f width = %d height = %d depth = %d\n",
+ 	                           x0,     y0,     incr,  width,     height,     depth);
+  dprintf(fd, "%d %d\n", width, height);
+  dprintf(fd, "255\n");
 
-  ssize_t res = write(fd, buffer, width*height*3);
+  size_t res = write(fd, buffer, width*height*3);
   close(fd);
 }
 
