@@ -27,6 +27,7 @@ int probe(double r, double i, int max);
 
 void color(int depth, int max, char *out);
 
+int ppm_write(char*,char*, int, int, int, char*);
 
 int main(int argc, const char * argv[]) {
 
@@ -55,12 +56,11 @@ int main(int argc, const char * argv[]) {
   printf("generating mandelbrot: width %d, height %d, depth %d, upper left corner (%f,%f), step: %f\n", width, height, depth, x0 , y0, incr);  
   
   // We're building a rgb image and need three bytes per pixel.
-  size_t image_size = sizeof(char) * 3 * width * height;
 
   gettimeofday(&t0, NULL);
 
   // The host buffer to where we generate the image
-  char *buffer = malloc(image_size);
+  char image[height][width][3];
   
   gettimeofday(&t1, NULL);
 
@@ -68,16 +68,15 @@ int main(int argc, const char * argv[]) {
     for(int x = 0; x < width; x++) {
       double xi = x0+incr*x;
       double yi = y0-incr*y;
-      int p = probe(xi, yi, depth);
-      int pos = (y * width + x)*3;
-      color(p, depth, &buffer[pos]);
+      color(probe(xi, yi, depth), depth, &image[y][x][0]);
     }
   }
-  
+
   gettimeofday(&t2, NULL);
 
-  // printf("Saving image to file .\n");      
-  save_to_file(x0, y0, incr, width, height, depth, buffer);
+  // printf("Saving image to file .\n");
+  
+  ppm_write("image.ppm", "mandelbrot", width, height, 255, &image[0][0][0]);
   
   gettimeofday(&t3, NULL);
 
@@ -122,7 +121,7 @@ void color(int depth, int max, char *out) {
 
   // depth is in the span [0 - (max-1)]
 
-  double f = ((double)depth/max);
+  double f = ((double)depth)/max;
 
   double a = f * 5;
   
@@ -151,28 +150,26 @@ void color(int depth, int max, char *out) {
 }
 
 
+int ppm_write(char *filepath, char *descr, int width, int height, int colors, char *image) {
 
 
-int save_to_file(double x0, double y0, double incr, int width, int height, int depth, char *buffer) {
-
-  // In the end everytghing will be in this file. 
-  const char *filepath = "image.ppm";
-  
   // Open the output file for reading and writing.
   int fd = open(filepath, O_RDWR | O_CREAT | O_TRUNC, (mode_t)0600);
     
   if (fd== -1) {
-    printf("Failed to open file %s\n", filepath);
+    printf("erro ppm: failed to open file %s\n", filepath);
     return -1;
   }
 
   dprintf(fd, "P6\n");
-  dprintf(fd, "# Mandelbrot image: x0 = %f y0 = %f k = %f width = %d height = %d depth = %d\n",
- 	                           x0,     y0,     incr,  width,     height,     depth);
+  dprintf(fd, "#%s\n", descr);
   dprintf(fd, "%d %d\n", width, height);
-  dprintf(fd, "255\n");
-
-  size_t res = write(fd, buffer, width*height*3);
+  dprintf(fd, "%d\n", colors);  
+  for(int y = 0; y < height; y++) {
+      for(int x = 0; x < width; x++) {
+	ssize_t res = write(fd, (image + (y*width*3)+(x*3)), 3);
+      }
+  }
   close(fd);
 }
 
